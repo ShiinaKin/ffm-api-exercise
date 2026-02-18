@@ -1,6 +1,8 @@
 package io.sakurasou
 
 import java.lang.foreign.Arena
+import java.lang.foreign.FunctionDescriptor
+import java.lang.foreign.Linker
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout
 import java.nio.file.Path
@@ -93,6 +95,22 @@ fun helloFFM(file: Path) {
                     cursor = it.first + 1
                     println(it.second)
                 }
+            }
+
+            val linker = Linker.nativeLinker()
+            val stdlib = linker.defaultLookup()
+            val methodAddr = stdlib.find("strlen").orElseThrow()
+            val strlenFuncDesc =
+                FunctionDescriptor.of(
+                    ValueLayout.JAVA_INT,
+                    ValueLayout.ADDRESS,
+                )
+            val functionCall = linker.downcallHandle(methodAddr, strlenFuncDesc)
+            val (_, lastLineStr) = readLine(memorySegment, point - 11)
+            Arena.ofConfined().use { arena2 ->
+                val lastLineStrMemSeg = arena2.allocateFrom(lastLineStr)
+                val result = functionCall.invoke(lastLineStrMemSeg) as Long
+                println("strlen of last line: $result")
             }
         }
     }
